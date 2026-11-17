@@ -29,3 +29,10 @@ class FinishInput(BaseModel):
     def not_blank(cls,v):
         if len(v.strip())<8:raise ValueError('至少8字试验收尾说明')
         return v.strip()
+class RevokeInput(BaseModel):
+    reason:str=Field(min_length=8,max_length=2000)
+    @field_validator('reason')
+    @classmethod
+    def not_blank(cls,v):
+        if len(v.strip())<8:raise ValueError('撤销缘由至少8字')
+        return v.strip()

@@ -7,7 +7,7 @@ from .acquisition_models import AcquisitionBatch
 from .delivery_models import TunnelDelivery
 from .testcycle_schemas import MountInput,MountLinkInput,BatchInput,ReadingsInput,DeliveryInput,ReceiptInput
 from .services import pack
-from . import mount_service as mounts,acquisition_service as acq,delivery_service as deliveries
+from . import mount_service as mounts,acquisition_service as acq,delivery_service as deliveries,revocation_service as revocation
 router=APIRouter()
 @router.get('/model-mounts')
 def list_mounts(s=Depends(db_session),u=Depends(current)):return [pack(x) for x in s.scalars(select(ModelMount).order_by(ModelMount.id.desc()))]
@@ -41,7 +41,7 @@ def readings(id:int,d:ReadingsInput,s=Depends(db_session),u=Depends(writers)):
 def freeze(id:int,s=Depends(db_session),u=Depends(admin)):
     x=acq.freeze(s,id,u);s.commit();return x
 @router.get('/tunnel-deliveries')
-def list_deliveries(s=Depends(db_session),u=Depends(current)):return [pack(x) for x in s.scalars(select(TunnelDelivery).order_by(TunnelDelivery.id.desc()))]
+def list_deliveries(s=Depends(db_session),u=Depends(current)):return [pack(x)|{'affected':revocation.run_affected(s,x.run_id)} for x in s.scalars(select(TunnelDelivery).order_by(TunnelDelivery.id.desc()))]
 @router.post('/tunnel-deliveries')
 def delivery(d:DeliveryInput,s=Depends(db_session),u=Depends(writers)):
     x=deliveries.create(s,d,u);s.commit();return x

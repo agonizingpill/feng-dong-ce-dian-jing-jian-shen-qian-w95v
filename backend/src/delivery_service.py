@@ -6,6 +6,7 @@ from .acquisition_models import AcquisitionBatch
 from .acquisition_service import view as batch_view
 from .delivery_models import TunnelDelivery
 from .calibration_service import locked
+from .revocation_service import assert_not_affected
 from .services import pack,audit
 
 def create(s,d,u):
@@ -17,8 +18,11 @@ def create(s,d,u):
     if s.scalar(select(TunnelDelivery.id).where(TunnelDelivery.run_id==r.id)):raise HTTPException(409,'本试验已有交付单，不得重复发布')
     x=TunnelDelivery(**d.model_dump(),snapshot=deepcopy({'run':pack(r),'acquisition':batch_view(s,b)}));s.add(x);s.flush();audit(s,u,'提交试验交付 '+str(x.id));return pack(x)
 def approve(s,id,u):
-    x=locked(s,TunnelDelivery,id)
+    pre=s.get(TunnelDelivery,id)
+    if not pre:raise HTTPException(404,'交付单不存在')
+    r=locked(s,TunnelRun,pre.run_id);x=locked(s,TunnelDelivery,id)
     if x.state!='submitted':raise HTTPException(409,'仅待复核交付可核准，不能重复发布')
+    assert_not_affected(s,r.id,'核准交付')
     x.state='approved';x.approved_by=u.email;audit(s,u,'主管核准交付 '+str(id));return pack(x)
 def acknowledge(s,id,d,u):
     x=locked(s,TunnelDelivery,id)

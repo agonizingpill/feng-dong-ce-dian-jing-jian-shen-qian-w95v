@@ -4,6 +4,7 @@ from sqlalchemy import select
 from fastapi import HTTPException
 from .models import Probe
 from .calibration_models import CalibrationCertificate
+from .revocation_models import CertificateRevocation
 from .services import get,pack,audit
 ZERO_LIMIT=.5
 SPAN_LIMIT=1.0
@@ -34,4 +35,6 @@ def issue(s,id,u):
 def current_certificate(s,probe):
     x=s.scalar(select(CalibrationCertificate).where(CalibrationCertificate.probe_id==probe.id,CalibrationCertificate.state=='issued').order_by(CalibrationCertificate.issued_at.desc(),CalibrationCertificate.id.desc()).with_for_update())
     if not x:raise HTTPException(409,f'{probe.code}缺少负责人签发的校准证书')
-    validate(x);return x
+    validate(x)
+    if s.scalar(select(CertificateRevocation.id).where(CertificateRevocation.certificate_id==x.id)):raise HTTPException(409,f'{probe.code}当前校准证书已被撤销，须重新登记签发，不回退更旧证书')
+    return x
